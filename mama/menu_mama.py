@@ -2,19 +2,6 @@ import streamlit as st
 import requests
 import random
 from datetime import datetime
-from googletrans import Translator
-
-# ==================== TRADUCTOR ====================
-translator = Translator()
-
-def traducir(texto):
-    if not texto or texto.strip() == "":
-        return texto
-    try:
-        resultado = translator.translate(texto, dest='es')
-        return resultado.text
-    except:
-        return texto  # Si falla, devuelve el texto original
 
 # ==================== MENSAJES DE AMOR ====================
 mensajes_amor = [
@@ -36,9 +23,6 @@ st.set_page_config(page_title="Para Mamá ❤️", layout="centered", initial_si
 
 if 'pantalla' not in st.session_state:
     st.session_state.pantalla = "bienvenida"
-
-if 'traducir' not in st.session_state:
-    st.session_state.traducir = False
 
 # ===================== PANTALLA DE BIENVENIDA =====================
 if st.session_state.pantalla == "bienvenida":
@@ -73,6 +57,8 @@ else:
     st.title("🍽️ Menú Semanal Inteligente")
     st.markdown("### ¿Qué ingredientes tienes en casa?")
 
+    st.info("💡 **Consejo**: Una vez cargadas las recetas, toca los 3 puntos ⋮ en Chrome → 'Traducir' para ver todo en español")
+
     ingredientes_input = st.text_input(
         "Ingredientes (separados por coma):", 
         placeholder="pollo, arroz, tomate, cebolla, papa..."
@@ -81,11 +67,6 @@ else:
     col1, col2, col3 = st.columns(3)
     num_personas = col2.number_input("Número de personas", min_value=1, value=4)
     modo_random = col3.checkbox("Sin ingredientes → Recetas aleatorias", value=False)
-
-    # Botón de traducción
-    if st.button("🌐 Traducir todo a Español", type="secondary", use_container_width=True):
-        st.session_state.traducir = True
-        st.rerun()
 
     if st.button("🎲 Generar Opciones de Menú", type="primary", use_container_width=True):
         st.info("Buscando recetas...")
@@ -115,11 +96,7 @@ else:
                     detail = requests.get(f"https://www.themealdb.com/api/json/v1/1/lookup.php?i={meal_id}").json()
                     meal = detail["meals"][0]
                     
-                    # Traducción
-                    nombre = traducir(meal["strMeal"]) if st.session_state.traducir else meal["strMeal"]
-                    instrucciones = traducir(meal["strInstructions"]) if st.session_state.traducir else meal["strInstructions"]
-                    
-                    st.subheader(nombre)
+                    st.subheader(meal["strMeal"])
                     st.image(meal["strMealThumb"], use_column_width=True)
                     
                     col_a, col_b, col_c = st.columns(3)
@@ -136,11 +113,10 @@ else:
                         ing_name = meal.get(f"strIngredient{i}")
                         ing_measure = meal.get(f"strMeasure{i}")
                         if ing_name and ing_name.strip():
-                            ing_trad = traducir(ing_name) if st.session_state.traducir else ing_name
-                            st.write(f"- {ing_measure} {ing_trad}")
+                            st.write(f"- {ing_measure} {ing_name}")
                     
                     st.markdown("**👩‍🍳 Preparación:**")
-                    st.write(instrucciones)
+                    st.write(meal["strInstructions"])
                     
                     if meal.get("strYoutube"):
                         st.video(meal["strYoutube"])
