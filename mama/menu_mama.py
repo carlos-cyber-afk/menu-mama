@@ -2,6 +2,19 @@ import streamlit as st
 import requests
 import random
 from datetime import datetime
+from googletrans import Translator
+
+# ==================== TRADUCTOR ====================
+translator = Translator()
+
+def traducir(texto):
+    if not texto or texto.strip() == "":
+        return texto
+    try:
+        resultado = translator.translate(texto, dest='es')
+        return resultado.text
+    except:
+        return texto  # Si falla, devuelve el texto original
 
 # ==================== MENSAJES DE AMOR ====================
 mensajes_amor = [
@@ -24,15 +37,14 @@ st.set_page_config(page_title="Para Mamá ❤️", layout="centered", initial_si
 if 'pantalla' not in st.session_state:
     st.session_state.pantalla = "bienvenida"
 
-# ===================== PANTALLA DE BIENVENIDA MEJORADA =====================
+if 'traducir' not in st.session_state:
+    st.session_state.traducir = False
+
+# ===================== PANTALLA DE BIENVENIDA =====================
 if st.session_state.pantalla == "bienvenida":
-    
-    # Fondo oscuro elegante
     st.markdown("""
         <style>
-        .stApp {
-            background: linear-gradient(135deg, #1a0033, #4a0033);
-        }
+        .stApp { background: linear-gradient(135deg, #1a0033, #4a0033); }
         </style>
     """, unsafe_allow_html=True)
 
@@ -42,40 +54,19 @@ if st.session_state.pantalla == "bienvenida":
         </h1>
     """, unsafe_allow_html=True)
 
-    mensaje = get_mensaje_del_dia()
-
     st.markdown(f"""
-        <div style='
-            background: rgba(255, 255, 255, 0.95);
-            padding: 45px 30px;
-            border-radius: 25px;
-            margin: 40px auto;
-            max-width: 700px;
-            box-shadow: 0 15px 35px rgba(255, 105, 180, 0.3);
-            text-align: center;
-            font-size: 24px;
-            line-height: 1.5;
-            color: #333;
-            border: 3px solid #ff69b4;
-        '>
-            {mensaje}
+        <div style='background: rgba(255,255,255,0.95); padding: 45px 30px; border-radius: 25px; 
+                    margin: 40px auto; max-width: 700px; box-shadow: 0 15px 35px rgba(255,105,180,0.3);
+                    text-align: center; font-size: 24px; line-height: 1.5; color: #333; border: 3px solid #ff69b4;'>
+            {get_mensaje_del_dia()}
         </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("<br><br>", unsafe_allow_html=True)
-
-    col1, col2, col3 = st.columns([1, 2, 1])
+    col1, col2, col3 = st.columns([1,2,1])
     with col2:
         if st.button("🍽️ Ver Menús Semanales", type="primary", use_container_width=True):
             st.session_state.pantalla = "app"
             st.rerun()
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("""
-        <p style='text-align: center; color: #ff69b4; font-size: 18px;'>
-        Hecho con mucho amor ❤️
-        </p>
-    """, unsafe_allow_html=True)
 
 # ===================== APLICACIÓN PRINCIPAL =====================
 else:
@@ -84,21 +75,26 @@ else:
 
     ingredientes_input = st.text_input(
         "Ingredientes (separados por coma):", 
-        placeholder="pollo, arroz, tomate, cebolla..."
+        placeholder="pollo, arroz, tomate, cebolla, papa..."
     )
 
     col1, col2, col3 = st.columns(3)
     num_personas = col2.number_input("Número de personas", min_value=1, value=4)
     modo_random = col3.checkbox("Sin ingredientes → Recetas aleatorias", value=False)
 
+    # Botón de traducción
+    if st.button("🌐 Traducir todo a Español", type="secondary", use_container_width=True):
+        st.session_state.traducir = True
+        st.rerun()
+
     if st.button("🎲 Generar Opciones de Menú", type="primary", use_container_width=True):
-        st.info("Buscando deliciosas recetas...")
-        
+        st.info("Buscando recetas...")
+
         opciones = ["A", "B", "C", "D", "E", "F", "G"]
         
         for letra in opciones:
             with st.expander(f"🍽️ **Opción {letra}**", expanded=False):
-                # (El resto del código de las recetas se mantiene igual)
+                
                 if ingredientes_input.strip() and not modo_random:
                     ing = ingredientes_input.split(",")[0].strip()
                     url = f"https://www.themealdb.com/api/json/v1/1/filter.php?i={ing}"
@@ -119,7 +115,11 @@ else:
                     detail = requests.get(f"https://www.themealdb.com/api/json/v1/1/lookup.php?i={meal_id}").json()
                     meal = detail["meals"][0]
                     
-                    st.subheader(meal["strMeal"])
+                    # Traducción
+                    nombre = traducir(meal["strMeal"]) if st.session_state.traducir else meal["strMeal"]
+                    instrucciones = traducir(meal["strInstructions"]) if st.session_state.traducir else meal["strInstructions"]
+                    
+                    st.subheader(nombre)
                     st.image(meal["strMealThumb"], use_column_width=True)
                     
                     col_a, col_b, col_c = st.columns(3)
@@ -136,19 +136,20 @@ else:
                         ing_name = meal.get(f"strIngredient{i}")
                         ing_measure = meal.get(f"strMeasure{i}")
                         if ing_name and ing_name.strip():
-                            st.write(f"- {ing_measure} {ing_name}")
+                            ing_trad = traducir(ing_name) if st.session_state.traducir else ing_name
+                            st.write(f"- {ing_measure} {ing_trad}")
                     
                     st.markdown("**👩‍🍳 Preparación:**")
-                    st.write(meal["strInstructions"])
+                    st.write(instrucciones)
                     
                     if meal.get("strYoutube"):
                         st.video(meal["strYoutube"])
                         
                 except:
-                    st.error("Error de conexión.")
+                    st.error("Error de conexión. Revisa tu internet.")
 
     if st.button("← Volver al mensaje de inicio"):
         st.session_state.pantalla = "bienvenida"
         st.rerun()
 
-st.caption("Hecho con mucho amor ❤️")
+st.caption("Hecho con mucho amor para la mejor mamá del mundo ❤️")
